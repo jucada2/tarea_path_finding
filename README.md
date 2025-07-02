@@ -1,7 +1,7 @@
 # Tarea de Grafos
 
 ## Integrantes: 
-- 1 ____   _____
+- 1 Paredes Alva, Juan Carlos
 - 2 ____   _____
 - 3 ____   _____
 
