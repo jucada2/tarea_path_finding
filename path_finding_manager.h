@@ -6,6 +6,9 @@
 #define HOMEWORK_GRAPH_PATH_FINDING_MANAGER_H
 
 
+#include <iostream>
+#include <queue>
+
 #include "window_manager.h"
 #include "graph.h"
 #include <unordered_map>
@@ -42,14 +45,83 @@ class PathFindingManager {
         double dist;
 
         bool operator < (const Entry& other) const {
-            return dist < other.dist;
+            return dist > other.dist;
         }
     };
 
     void dijkstra(Graph &graph) {
+        // --- NUEVO CÓDIGO DE DEPURACIÓN ---
+        std::cout << "--- Iniciando Dijkstra ---" << std::endl;
+        std::cout << "ID Origen (src): " << src->id << " | ID Destino (dest): " << dest->id << std::endl;
+        // ---------------------------------
+        std::unordered_map<Node*, double> dists;
         std::unordered_map<Node *, Node *> parent;
-        // TODO: Add your code here
 
+        // Usamos una priority_queue de C++ que es más eficiente para Dijkstra.
+        // El `>` sobrecargado en `Entry` la convierte en una cola de mínima prioridad.
+        std::priority_queue<Entry> pq;
+
+        // Conjunto para guardar los nodos cuyo camino más corto ya es definitivo
+        std::set<Node*> finalized_nodes;
+        int nodes_processed = 0;
+        // 1. Inicialización
+        for (auto const& [id, node] : graph.nodes) {
+            dists[node] = std::numeric_limits<double>::max();
+        }
+        dists[src] = 0.0;
+        pq.push({src, 0.0});
+
+        // 2. Bucle principal del algoritmo
+        while (!pq.empty()) {
+            Node* u = pq.top().node;
+            pq.pop();
+
+            // --- AÑADE ESTAS LÍNEAS ---
+            nodes_processed++;
+            // Imprime el progreso cada 50,000 nodos procesados
+            if (nodes_processed % 50000 == 0) {
+                render(graph);
+                std::cout << "Nodos procesados: " << nodes_processed << "..." << std::endl;
+            }
+            // ------------------------
+
+            if (finalized_nodes.count(u)) {
+                continue;
+            }
+            finalized_nodes.insert(u);
+            // Para visualización: pintamos el nodo actual
+            if (u != src && u != dest) {
+                u->color = sf::Color::Blue;
+            }
+            // Si llegamos al destino, podemos detenernos
+            if (u == dest) break;
+
+            // 3. Explorar los vecinos ('v') del nodo actual ('u')
+            for (Edge* edge : u->edges) {
+
+                if (edge == nullptr) {
+                    continue;
+                }
+                // Determinar el vecino correcto (dependiendo de la dirección de la arista)
+                Node* v = (edge->src == u) ? edge->dest : edge->src;
+                if (v == nullptr) {
+                    continue;
+                }
+
+                // Ignorar aristas unidireccionales en la dirección incorrecta
+                if (edge->one_way && edge->dest != v) continue;
+
+                double weight = edge->length;
+
+                if (dists[u] + weight < dists[v]) {
+                    visited_edges.emplace_back(u->coord, v->coord, sf::Color(255, 255, 0, 100), 1.5f);
+                    dists[v] = dists[u] + weight;
+                    parent[v] = u;
+                    pq.push({v, dists[v]});
+                }
+            }
+        }
+        std::cout << "Búsqueda terminada. Total de nodos procesados: " << nodes_processed << std::endl;
         set_final_path(parent);
     }
 
@@ -62,7 +134,17 @@ class PathFindingManager {
 
     //* --- render ---
     // En cada iteración de los algoritmos esta función es llamada para dibujar los cambios en el 'window_manager'
-    void render() {
+    void render(Graph& graph) {
+        // Procesamos eventos para que la ventana no se congele
+        sf::Event event;
+        while(window_manager->poll_event(event)) {
+            if(event.type == sf::Event::Closed) window_manager->close();
+        }
+
+        window_manager->clear();          // Limpia el fotograma anterior
+        graph.draw();                     // Dibuja el estado base del grafo
+        draw(true);                       // Dibuja las aristas visitadas y los nodos src/dest
+        window_manager->display();        // Muestra el nuevo fotograma
         sf::sleep(sf::milliseconds(10));
         // TODO: Add your code here
     }
@@ -83,9 +165,24 @@ class PathFindingManager {
     // Este path será utilizado para hacer el 'draw()' del 'path' entre 'src' y 'dest'.
     //*
     void set_final_path(std::unordered_map<Node *, Node *> &parent) {
+        // Empezamos desde el nodo de destino
         Node* current = dest;
 
-        // TODO: Add your code here
+        // Recorremos el mapa de padres hacia atrás hasta que no haya más
+        // (o hasta que lleguemos al inicio, que no tiene padre)
+        while (parent.count(current)) {
+            Node* p = parent[current];
+
+            // Creamos una línea verde y más gruesa para el camino final
+            path.emplace_back(p->coord, current->coord, sf::Color::Green, 3.0f);
+
+            // Nos movemos al nodo padre para continuar el trazado
+            current = p;
+        }
+
+        // El camino se construyó desde el final hacia el inicio,
+        // así que lo invertimos para tenerlo en el orden correcto.
+        std::reverse(path.begin(), path.end());
     }
 
 public:
@@ -99,7 +196,28 @@ public:
             return;
         }
 
-        // TODO: Add your code here
+        // Limpiamos solo los caminos, sin borrar src y dest
+        path.clear();
+        visited_edges.clear();
+
+        // Aseguramos que src y dest mantengan su color distintivo
+        src->color = sf::Color::Green;
+        dest->color = sf::Color::Cyan;
+
+        switch (algorithm) {
+            case Dijkstra:
+                // Llama a la función interna dijkstra
+                dijkstra(graph);
+                break;
+            case AStar:
+                // Llama a la función interna a_star
+                a_star(graph);
+                break;
+            case None:
+                // Si el algoritmo es 'None' o cualquier otro caso, no hace nada
+            default:
+                break;
+        }
     }
 
     void reset() {

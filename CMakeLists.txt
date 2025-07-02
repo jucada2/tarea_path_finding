@@ -12,6 +12,12 @@ add_executable(${PROJECT_NAME} main.cpp
         path_finding_manager.h
 )
 
+file(COPY
+        ${CMAKE_SOURCE_DIR}/nodes.csv
+        ${CMAKE_SOURCE_DIR}/edges.csv
+        DESTINATION ${CMAKE_BINARY_DIR}
+)
+
 find_package(SFML 2.5 COMPONENTS graphics window REQUIRED)
 if(SFML_FOUND)
     target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-window)
