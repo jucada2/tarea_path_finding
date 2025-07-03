@@ -19,7 +19,8 @@
 enum Algorithm {
     None,
     Dijkstra,
-    AStar
+    AStar,
+    BestFirstSearch
 };
 
 
@@ -49,93 +50,167 @@ class PathFindingManager {
         }
     };
 
+    //Calculamos la distancia euclidana en línea recta entre dos puntos
+    static double heuristic(sf::Vector2f a, sf::Vector2f b) {
+        return std::sqrt(std::pow(a.x - b.x, 2) + std::pow(a.y - b.y, 2));
+    }
+
+    //Creé esta función auxiliar para que se vaya imprimiendo el progreso cada cierta cantidad de nodos procesados
+    //y se pinte con el render
+    void paint_nodes_visited(int nodes_processed, Graph &graph, int quantity) {
+        if (nodes_processed % quantity == 0) {
+            render(graph);
+            std::cout << "Nodos procesados: " << nodes_processed << "..." << std::endl;
+        }
+    }
+
     void dijkstra(Graph &graph) {
-        // --- NUEVO CÓDIGO DE DEPURACIÓN ---
-        std::cout << "--- Iniciando Dijkstra ---" << std::endl;
-        std::cout << "ID Origen (src): " << src->id << " | ID Destino (dest): " << dest->id << std::endl;
-        // ---------------------------------
         std::unordered_map<Node*, double> dists;
         std::unordered_map<Node *, Node *> parent;
 
-        // Usamos una priority_queue de C++ que es más eficiente para Dijkstra.
-        // El `>` sobrecargado en `Entry` la convierte en una cola de mínima prioridad.
         std::priority_queue<Entry> pq;
 
-        // Conjunto para guardar los nodos cuyo camino más corto ya es definitivo
         std::set<Node*> finalized_nodes;
         int nodes_processed = 0;
-        // 1. Inicialización
+
         for (auto const& [id, node] : graph.nodes) {
             dists[node] = std::numeric_limits<double>::max();
         }
         dists[src] = 0.0;
         pq.push({src, 0.0});
 
-        // 2. Bucle principal del algoritmo
         while (!pq.empty()) {
             Node* u = pq.top().node;
             pq.pop();
 
-            // --- AÑADE ESTAS LÍNEAS ---
             nodes_processed++;
-            // Imprime el progreso cada 50,000 nodos procesados
-            if (nodes_processed % 50000 == 0) {
-                render(graph);
-                std::cout << "Nodos procesados: " << nodes_processed << "..." << std::endl;
-            }
-            // ------------------------
-
             if (finalized_nodes.count(u)) {
                 continue;
             }
             finalized_nodes.insert(u);
-            // Para visualización: pintamos el nodo actual
-            if (u != src && u != dest) {
-                u->color = sf::Color::Blue;
-            }
-            // Si llegamos al destino, podemos detenernos
+
             if (u == dest) break;
 
-            // 3. Explorar los vecinos ('v') del nodo actual ('u')
             for (Edge* edge : u->edges) {
 
                 if (edge == nullptr) {
                     continue;
                 }
-                // Determinar el vecino correcto (dependiendo de la dirección de la arista)
                 Node* v = (edge->src == u) ? edge->dest : edge->src;
                 if (v == nullptr) {
                     continue;
                 }
-
-                // Ignorar aristas unidireccionales en la dirección incorrecta
                 if (edge->one_way && edge->dest != v) continue;
-
                 double weight = edge->length;
 
                 if (dists[u] + weight < dists[v]) {
-                    visited_edges.emplace_back(u->coord, v->coord, sf::Color(255, 255, 0, 100), 1.5f);
+                    visited_edges.emplace_back(u->coord, v->coord, sf::Color::Red, 1.5f);
                     dists[v] = dists[u] + weight;
                     parent[v] = u;
                     pq.push({v, dists[v]});
+                    paint_nodes_visited(nodes_processed, graph, 50000); //se va a imprimir cada 50k
                 }
             }
         }
+        //Se añade un print para saber al final la cantidad de nodos procesdos con dijkstra
         std::cout << "Búsqueda terminada. Total de nodos procesados: " << nodes_processed << std::endl;
         set_final_path(parent);
     }
 
     void a_star(Graph &graph) {
+        // g_scores es el equivalente a dists de djikstra
+        std::unordered_map<Node*, double> g_scores;
         std::unordered_map<Node *, Node *> parent;
-        // TODO: Add your code here
+        std::priority_queue<Entry> pq;
 
+        std::set<Node*> closed_set;
+
+        for (auto const& [id, node] : graph.nodes) {
+            g_scores[node] = std::numeric_limits<double>::max();
+        }
+        g_scores[src] = 0.0;
+
+        double f_initial = heuristic(src->coord, dest->coord);
+        pq.push({src, f_initial});
+        int nodes_processed = 0;
+
+        while (!pq.empty()) {
+            Node* u = pq.top().node;
+            pq.pop();
+            nodes_processed++;
+            if (closed_set.count(u)) {
+                continue;
+            }
+            if (u == dest) break;
+
+            for (Edge* edge : u->edges) {
+                if (edge == nullptr) continue;
+                Node* v = (edge->src == u) ? edge->dest : edge->src;
+                if (v == nullptr) continue;
+                if (edge->one_way && edge->dest != v) continue;
+
+                double g_score_via_u = g_scores[u] + edge->length;
+
+                if (g_score_via_u < g_scores[v]) {
+                    parent[v] = u;
+                    g_scores[v] = g_score_via_u;
+                    double f_score = g_score_via_u + heuristic(v->coord, dest->coord);
+                    pq.push({v, f_score});
+
+                    visited_edges.emplace_back(u->coord, v->coord, sf::Color::Yellow, 1.5f);
+                    paint_nodes_visited(nodes_processed, graph, 50000); //se va a imprimir cada 50k
+                }
+            }
+        }
+        //Se añade un print para saber al final la cantidad de nodos procesdos con A*
+        std::cout << "Búsqueda terminada. Total de nodos procesados: " << nodes_processed << std::endl;
+        set_final_path(parent);
+    }
+
+    void best_first_search(Graph &graph) {
+        std::unordered_map<Node *, Node *> parent;
+        std::priority_queue<Entry> pq;
+        std::set<Node*> visited_set;
+
+        pq.push({src, heuristic(src->coord, dest->coord)});
+
+        int nodes_processed = 0;
+
+        while (!pq.empty()) {
+            Node* u = pq.top().node;
+            pq.pop();
+            nodes_processed++;
+            if (visited_set.count(u)) {
+                continue;
+            }
+            visited_set.insert(u);
+
+            if (u == dest) break;
+
+            for (Edge* edge : u->edges) {
+                if (edge == nullptr) continue;
+                Node* v = (edge->src == u) ? edge->dest : edge->src;
+                if (v == nullptr) continue;
+                if (edge->one_way && edge->dest != v) continue;
+
+                if (!visited_set.count(v)) {
+                    parent[v] = u;
+                    pq.push({v, heuristic(v->coord, dest->coord)});
+                    visited_edges.emplace_back(u->coord, v->coord, sf::Color::Magenta, 1.5f);
+                    //se va a imprimir cada 1000 porque BFS es más rápido
+                    paint_nodes_visited(nodes_processed, graph, 1000);
+
+                }
+            }
+        }
+        //Se añade un print para saber al final la cantidad de nodos procesdos con BFS
+        std::cout << "Búsqueda terminada. Total de nodos procesados: " << nodes_processed << std::endl;
         set_final_path(parent);
     }
 
     //* --- render ---
     // En cada iteración de los algoritmos esta función es llamada para dibujar los cambios en el 'window_manager'
     void render(Graph& graph) {
-        // Procesamos eventos para que la ventana no se congele
         sf::Event event;
         while(window_manager->poll_event(event)) {
             if(event.type == sf::Event::Closed) window_manager->close();
@@ -146,7 +221,6 @@ class PathFindingManager {
         draw(true);                       // Dibuja las aristas visitadas y los nodos src/dest
         window_manager->display();        // Muestra el nuevo fotograma
         sf::sleep(sf::milliseconds(10));
-        // TODO: Add your code here
     }
 
     //* --- set_final_path ---
@@ -213,11 +287,16 @@ public:
                 // Llama a la función interna a_star
                 a_star(graph);
                 break;
+            case BestFirstSearch:
+                // Llama a la función interna BFS
+                best_first_search(graph);
+                break;
             case None:
                 // Si el algoritmo es 'None' o cualquier otro caso, no hace nada
             default:
                 break;
         }
+
     }
 
     void reset() {
