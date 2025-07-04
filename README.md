@@ -4,8 +4,8 @@
 - 1 Paredes Alva, Juan Carlos
 
 ## Análisis computacional y Video:
-[Análisis Computacional Documento](https://docs.google.com/document/d/1w361o66X_Wkv8L46Yp5WqbJpLtRV9NJ7GZBPHzA6RPQ/edit?usp=sharing)
-[Video Demostrativo](
+- [Análisis Computacional Documento](https://docs.google.com/document/d/1w361o66X_Wkv8L46Yp5WqbJpLtRV9NJ7GZBPHzA6RPQ/edit?usp=sharing)
+- [Video Demostrativo](https://youtu.be/NV3nJ04Wx5w)
 
 
 ## Objetivo: 
