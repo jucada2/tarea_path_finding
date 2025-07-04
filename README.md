@@ -2,8 +2,6 @@
 
 ## Integrantes: 
 - 1 Paredes Alva, Juan Carlos
-- 2 ____   _____
-- 3 ____   _____
 
 ## Objetivo: 
 El objetivo de esta tarea es implementar un **Path Finder** para la ciudad de Lima. 
