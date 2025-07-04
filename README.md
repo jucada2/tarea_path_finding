@@ -3,6 +3,11 @@
 ## Integrantes: 
 - 1 Paredes Alva, Juan Carlos
 
+## Análisis computacional y Video:
+[Análisis Computacional Documento](https://docs.google.com/document/d/1w361o66X_Wkv8L46Yp5WqbJpLtRV9NJ7GZBPHzA6RPQ/edit?usp=sharing)
+[Video Demostrativo](
+
+
 ## Objetivo: 
 El objetivo de esta tarea es implementar un **Path Finder** para la ciudad de Lima. 
 
